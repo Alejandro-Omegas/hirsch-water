@@ -87,7 +87,7 @@ void simulation_step(struct Cell environment[ROWS*COLUMNS]) {
         for(int j=0; j<COLUMNS; j++) {
             struct Cell current_cell = environment[j+COLUMNS*i];
 
-            if(current_cell.type == WATER_TYPE && i<R`OWS-1) {
+            if(current_cell.type == WATER_TYPE && i<ROWS-1) { //if the cell is water and it is not at the bottom of the window
                 if(environment[j+COLUMNS*i].fill_level != 0) {
                     flows[j+COLUMNS*i].flow_down = 1;
                 }
@@ -95,13 +95,14 @@ void simulation_step(struct Cell environment[ROWS*COLUMNS]) {
         }
     }
 
-    for(int i=0; i<ROWS; i++) {
+    for(int i=0; i<ROWS; i++) { 
         for(int j=0; j<COLUMNS; j++) {
-            if(i > 0) {
-                environment[j+COLUMNS*i];
-                environment[j+COLUMNS*(i-1)];
+            if(i > 0) { //if it is not the top row
+               // environment[j+COLUMNS*i]; //these two lines were in ep.2, left for no apparent reason, so I commented them out
+              //  environment[j+COLUMNS*(i-1)];
                 struct CellFlow cell_above_flow = flows[j+COLUMNS*(i-1)];
 
+                //changes the fill levels of the cells affected, so technically the black cells left behind are WATER_TYPE with 0 fill_level?
                 environment[j+COLUMNS*i].fill_level += cell_above_flow.flow_down;
                 environment[j+COLUMNS*(i-1)].fill_level -= cell_above_flow.flow_down; 
             }
