@@ -21,12 +21,12 @@ struct Cell {
     int y;
 };
 
-struct CellFlow {
-    double flow_left;
-    double flow_right;
-    double flow_up;
-    double flow_down;
-};
+// struct CellFlow {
+//     double flow_left;
+//     double flow_right;
+//     double flow_up;
+//     double flow_down;
+// };
 
 void draw_cell(SDL_Surface* surface, struct Cell cell) {
     int pixel_x = cell.x*CELL_SIZE;
@@ -77,36 +77,54 @@ void draw_environment(SDL_Surface* surface, struct Cell environment[ROWS*COLUMNS
 }
 
 void simulation_step(struct Cell environment[ROWS*COLUMNS]) {
-    struct CellFlow flows[ROWS*COLUMNS];
+    struct Cell environment_next[ROWS*COLUMNS];
 
     for(int i=0; i<ROWS*COLUMNS; i++) {
-        flows[i] = (struct CellFlow) { 0, 0, 0, 0 };
+        environment_next[i] = environment[i];
     }
 
     for(int i=0; i<ROWS; i++) {
         for(int j=0; j<COLUMNS; j++) {
-            struct Cell current_cell = environment[j+COLUMNS*i];
+            //Rule #1: watah' flows down
+            struct Cell source_cell = environment[j+COLUMNS*i];
 
-            if(current_cell.type == WATER_TYPE && i<ROWS-1) { //if the cell is water and it is not at the bottom of the window
-                if(environment[j+COLUMNS*i].fill_level != 0) {
-                    flows[j+COLUMNS*i].flow_down = 1;
+            if(source_cell.type == WATER_TYPE && i<ROWS-1) { //if the cell is water and it is not at the bottom of the window
+                struct Cell destination_cell = environment[j+COLUMNS*(i+1)];
+                
+                if(destination_cell.fill_level < source_cell.fill_level) {
+                    environment_next[j+COLUMNS*i].fill_level = 0;
+                    environment_next[j+COLUMNS*(i+1)].fill_level += source_cell.fill_level;
+                }
+            }
+
+            //Rule #2: watah' flowing left and right
+            int below_full_or_solid = 0;
+            if(i+1 == ROWS || environment[j+COLUMNS*(i+1)].fill_level >= 1 || environment[j+COLUMNS*(i+1)].type == SOLID_TYPE) {
+                if(source_cell.type == WATER_TYPE && j>0) {
+                    struct Cell destination_cell = environment[(j-1)+COLUMNS*i];
+                    
+                    if(destination_cell.type == WATER_TYPE && destination_cell.fill_level < source_cell.fill_level) {
+                        double delta_fill = source_cell.fill_level - destination_cell.fill_level;
+                        environment_next[j+COLUMNS*i].fill_level -= delta_fill / 3;
+                        environment_next[(j-1)+COLUMNS*i].fill_level += delta_fill / 3;
+                    }
+                }
+
+                if(source_cell.type == WATER_TYPE && j<COLUMNS-1) {
+                    struct Cell destination_cell = environment[(j+1)+COLUMNS*i];
+                    
+                    if(destination_cell.fill_level < source_cell.fill_level) {
+                        double delta_fill = source_cell.fill_level - destination_cell.fill_level;
+                        environment_next[j+COLUMNS*i].fill_level -= delta_fill / 3;
+                        environment_next[(j+1)+COLUMNS*i].fill_level += delta_fill / 3;
+                    }
                 }
             }
         }
     }
 
-    for(int i=0; i<ROWS; i++) { 
-        for(int j=0; j<COLUMNS; j++) {
-            if(i > 0) { //if it is not the top row
-               // environment[j+COLUMNS*i]; //these two lines were in ep.2, left for no apparent reason, so I commented them out
-              //  environment[j+COLUMNS*(i-1)];
-                struct CellFlow cell_above_flow = flows[j+COLUMNS*(i-1)];
-
-                //changes the fill levels of the cells affected, so technically the black cells left behind are WATER_TYPE with 0 fill_level?
-                environment[j+COLUMNS*i].fill_level += cell_above_flow.flow_down;
-                environment[j+COLUMNS*(i-1)].fill_level -= cell_above_flow.flow_down; 
-            }
-        } 
+    for(int i=0; i<ROWS*COLUMNS; i++) {
+        environment[i] = environment_next[i];
     }
 }
  
@@ -165,7 +183,7 @@ int main(int argc, char *argv[]) {
         draw_grid(surface);
         SDL_UpdateWindowSurface(window);
 
-        SDL_Delay(100);
+        SDL_Delay(30);
     }
 
     return 0;
