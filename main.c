@@ -91,9 +91,11 @@ void simulation_step(struct Cell environment[ROWS*COLUMNS]) {
             if(source_cell.type == WATER_TYPE && i<ROWS-1) { //if the cell is water and it is not at the bottom of the window
                 struct Cell destination_cell = environment[j+COLUMNS*(i+1)];
                 
-                if(destination_cell.fill_level < source_cell.fill_level) {
-                    environment_next[j+COLUMNS*i].fill_level = 0;
+                if(destination_cell.fill_level < source_cell.fill_level
+                && destination_cell.fill_level < 1.0) {
                     environment_next[j+COLUMNS*(i+1)].fill_level += source_cell.fill_level;
+                    environment_next[j+COLUMNS*i].fill_level = environment_next[j+COLUMNS*(i+1)].fill_level > 1.0 ? environment_next[j+COLUMNS*(i+1)].fill_level - 1.0 : 0.0;
+                    environment_next[j+COLUMNS*(i+1)].fill_level = environment_next[j+COLUMNS*(i+1)].fill_level > 1.0 ? 1.0 : environment_next[j+COLUMNS*(i+1)].fill_level;
                 }
             }
 
