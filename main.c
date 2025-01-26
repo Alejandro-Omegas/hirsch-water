@@ -6,7 +6,8 @@
 #define SCREEN_HEIGHT 600
 #define COLOR_WHITE 0xffffffff
 #define COLOR_BLACK 0x00000000
-#define COLOR_BLUE 0x34c3eb
+#define COLOR_BLUE_MAX 0x34c3eb
+#define COLOR_BLUE_MIN 0x001eff
 #define COLOR_GRAY 0x1f1f1f1f
 #define CELL_SIZE 20
 #define LINE_WIDTH 2
@@ -22,6 +23,21 @@ struct Cell {
     int y;
 };
 
+Uint32 get_interpolated_color(Uint32 min, Uint32 max, double percentage) {
+ 	Uint32 color1 = min;
+	Uint32 color2 = max;
+	unsigned char   r1 = (color1 >> 16) & 0xff;
+    unsigned char   r2 = (color2 >> 16) & 0xff;
+    unsigned char   g1 = (color1 >> 8) & 0xff;
+    unsigned char   g2 = (color2 >> 8) & 0xff;
+    unsigned char   b1 = color1 & 0xff;
+    unsigned char   b2 = color2 & 0xff;
+
+    return (int) ((r2 - r1) * percentage + r1) << 16 |
+            (int) ((g2 - g1) * percentage + g1) << 8 |
+            (int) ((b2 - b1) * percentage + b1);
+}
+
 void draw_cell(SDL_Surface* surface, struct Cell cell) {
     int pixel_x = cell.x*CELL_SIZE;
     int pixel_y = cell.y*CELL_SIZE;
@@ -31,10 +47,12 @@ void draw_cell(SDL_Surface* surface, struct Cell cell) {
 
     //water fill level
     if(cell.type == WATER_TYPE) {
-        int water_height = cell.fill_level * CELL_SIZE;
+        int water_height = cell.fill_level > 1 ? CELL_SIZE : cell.fill_level * CELL_SIZE;
         int empty_height = CELL_SIZE - water_height;
+        Uint32 interpolated_color = get_interpolated_color(COLOR_BLUE_MIN, COLOR_BLUE_MAX, cell.fill_level);
+
         SDL_Rect water_rect = (SDL_Rect) { pixel_x, pixel_y + empty_height, CELL_SIZE, water_height }; 
-        SDL_FillRect(surface, &water_rect, COLOR_BLUE);
+        SDL_FillRect(surface, &water_rect, interpolated_color);
     }
 
     //solid blocks
@@ -118,7 +136,7 @@ void water_rule_two(struct Cell environment[ROWS * COLUMNS]) {
             struct Cell source_cell = environment[j + COLUMNS * i];
 
             // Check if water cannot flow downward
-            if(i+1 == ROWS || environment[j + COLUMNS*(i+1)].fill_level >= 1 || 
+            if(i+1 == ROWS || environment[j + COLUMNS*(i+1)].fill_level >= 0.99 || //originally >= 1; changed cause it seems it can form columns of water under certain conditions
                environment[j + COLUMNS*(i+1)].type == SOLID_TYPE) {
 
                 // Flow left
@@ -225,7 +243,7 @@ int main(int argc, char *argv[]) {
                     else {
                         cell = (struct Cell) { current_type, environment[cell_x+COLUMNS*cell_y].fill_level + 1, cell_x, cell_y }; //in ep.4 it is +0.2 insteado +1
                     }
-                    
+
                     environment[cell_x + COLUMNS * cell_y] = cell;
                 }
             }
