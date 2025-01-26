@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
+#include <math.h>
 
 #define SCREEN_WIDTH 900
 #define SCREEN_HEIGHT 600
@@ -13,6 +14,7 @@
 #define ROWS SCREEN_HEIGHT/CELL_SIZE
 #define SOLID_TYPE 1
 #define WATER_TYPE 0
+#define DELAY_TIME 30
 
 struct Cell {
     int type;
@@ -20,13 +22,6 @@ struct Cell {
     int x;
     int y;
 };
-
-// struct CellFlow {
-//     double flow_left;
-//     double flow_right;
-//     double flow_up;
-//     double flow_down;
-// };
 
 void draw_cell(SDL_Surface* surface, struct Cell cell) {
     int pixel_x = cell.x*CELL_SIZE;
@@ -76,8 +71,44 @@ void draw_environment(SDL_Surface* surface, struct Cell environment[ROWS*COLUMNS
     }
 }
 
-void simulation_step(struct Cell environment[ROWS*COLUMNS]) {
+void watah_rule_one(struct Cell environment[ROWS*COLUMNS]) {
+    struct Cell environment_next[ROWS * COLUMNS] = {0}; // Initialize the next state
+
+    // Copy the initial state to the next state
+    for (int i = 0; i < ROWS * COLUMNS; i++) {
+        environment_next[i] = environment[i];
+    }
+
+    // Iterate through each cell
+    for (int i = 0; i < ROWS; i++) {
+        for (int j = 0; j < COLUMNS; j++) {
+            // Rule #1: Water flows down
+            struct Cell source_cell = environment[j + COLUMNS * i];
+
+            if (source_cell.type == WATER_TYPE && i < ROWS - 1) { // Check not at the bottom
+                struct Cell destination_cell = environment[j + COLUMNS * (i + 1)];
+
+                if (destination_cell.type == WATER_TYPE && destination_cell.fill_level < 1.0) {
+                    // Calculate transferable amount
+                    double transferable_amount = fmin(source_cell.fill_level, 1.0 - destination_cell.fill_level);
+
+                    // Update the next state
+                    environment_next[j + COLUMNS * (i + 1)].fill_level += transferable_amount;
+                    environment_next[j + COLUMNS * i].fill_level -= transferable_amount;
+                }
+            }
+        }
+    }
+
+    // Apply the next state to the current environment
+    for (int i = 0; i < ROWS * COLUMNS; i++) {
+        environment[i] = environment_next[i];
+    }
+}
+
+void watah_rule_two(struct Cell environment[ROWS*COLUMNS]) {
     struct Cell environment_next[ROWS*COLUMNS];
+    int rate_watah_move = 3;
 
     for(int i=0; i<ROWS*COLUMNS; i++) {
         environment_next[i] = environment[i];
@@ -85,40 +116,45 @@ void simulation_step(struct Cell environment[ROWS*COLUMNS]) {
 
     for(int i=0; i<ROWS; i++) {
         for(int j=0; j<COLUMNS; j++) {
-            //Rule #1: watah' flows down
+            //Rule #2: watah' flowing left and right
             struct Cell source_cell = environment[j+COLUMNS*i];
 
-            if(source_cell.type == WATER_TYPE && i<ROWS-1) { //if the cell is water and it is not at the bottom of the window
-                struct Cell destination_cell = environment[j+COLUMNS*(i+1)];
-                
-                if(destination_cell.fill_level < source_cell.fill_level
-                && destination_cell.fill_level < 1.0) {
-                    environment_next[j+COLUMNS*(i+1)].fill_level += source_cell.fill_level;
-                    environment_next[j+COLUMNS*i].fill_level = environment_next[j+COLUMNS*(i+1)].fill_level > 1.0 ? environment_next[j+COLUMNS*(i+1)].fill_level - 1.0 : 0.0;
-                    environment_next[j+COLUMNS*(i+1)].fill_level = environment_next[j+COLUMNS*(i+1)].fill_level > 1.0 ? 1.0 : environment_next[j+COLUMNS*(i+1)].fill_level;
-                }
-            }
-
-            //Rule #2: watah' flowing left and right
-            int below_full_or_solid = 0;
+            //if cell below is bottom of boundary, completely full or solid
             if(i+1 == ROWS || environment[j+COLUMNS*(i+1)].fill_level >= 1 || environment[j+COLUMNS*(i+1)].type == SOLID_TYPE) {
-                if(source_cell.type == WATER_TYPE && j>0) {
+                //Flow left
+                if(source_cell.type == WATER_TYPE && j>0) { //j>0 not in the leftmost boundary
                     struct Cell destination_cell = environment[(j-1)+COLUMNS*i];
                     
                     if(destination_cell.type == WATER_TYPE && destination_cell.fill_level < source_cell.fill_level) {
-                        double delta_fill = source_cell.fill_level - destination_cell.fill_level;
-                        environment_next[j+COLUMNS*i].fill_level -= delta_fill / 3;
-                        environment_next[(j-1)+COLUMNS*i].fill_level += delta_fill / 3;
+                        //double delta_fill = source_cell.fill_level - destination_cell.fill_level;
+                        // environment_next[j+COLUMNS*i].fill_level -= delta_fill / 3;
+                        // environment_next[(j-1)+COLUMNS*i].fill_level += delta_fill / 3;
+                        
+                        // Calculate transferable amount
+                        double transferable_amount = source_cell.fill_level - destination_cell.fill_level;
+
+                        // Update the next state
+                        environment_next[(j-1)+COLUMNS*i].fill_level += transferable_amount / rate_watah_move;
+                        environment_next[j+COLUMNS*i].fill_level -= transferable_amount / rate_watah_move;
+                        environment_next[j+COLUMNS*i].fill_level = environment_next[j+COLUMNS*i].fill_level <= 0.02 ? 0.0 : environment_next[j+COLUMNS*i].fill_level; //so the water does not divide infinitesimally
                     }
                 }
 
+                //Flow right
                 if(source_cell.type == WATER_TYPE && j<COLUMNS-1) {
                     struct Cell destination_cell = environment[(j+1)+COLUMNS*i];
                     
-                    if(destination_cell.fill_level < source_cell.fill_level) {
-                        double delta_fill = source_cell.fill_level - destination_cell.fill_level;
-                        environment_next[j+COLUMNS*i].fill_level -= delta_fill / 3;
-                        environment_next[(j+1)+COLUMNS*i].fill_level += delta_fill / 3;
+                    if(destination_cell.type == WATER_TYPE && destination_cell.fill_level < source_cell.fill_level) {
+                    //     //     double delta_fill = source_cell.fill_level - destination_cell.fill_level;
+                    //     //     environment_next[j+COLUMNS*i].fill_level -= delta_fill / 3;
+                    //     //     environment_next[(j+1)+COLUMNS*i].fill_level += delta_fill / 3;
+                        // Calculate transferable amount
+                        double transferable_amount = source_cell.fill_level - destination_cell.fill_level;
+
+                        // Update the next state
+                        environment_next[(j+1)+COLUMNS*i].fill_level += transferable_amount / rate_watah_move;
+                        environment_next[j+COLUMNS*i].fill_level -= transferable_amount / rate_watah_move;
+                        environment_next[j+COLUMNS*i].fill_level = environment_next[j+COLUMNS*i].fill_level < 0.02 ? 0.0 : environment_next[j+COLUMNS*i].fill_level;
                     }
                 }
             }
@@ -128,6 +164,11 @@ void simulation_step(struct Cell environment[ROWS*COLUMNS]) {
     for(int i=0; i<ROWS*COLUMNS; i++) {
         environment[i] = environment_next[i];
     }
+}
+
+void simulation_step(struct Cell environment[ROWS*COLUMNS]) {
+    watah_rule_one(environment);
+    watah_rule_two(environment);
 }
  
 int main(int argc, char *argv[]) {
@@ -185,7 +226,7 @@ int main(int argc, char *argv[]) {
         draw_grid(surface);
         SDL_UpdateWindowSurface(window);
 
-        SDL_Delay(30);
+        SDL_Delay(DELAY_TIME);
     }
 
     return 0;
