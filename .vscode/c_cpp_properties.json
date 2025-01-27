@@ -1,18 +1,19 @@
 {
-    "configurations": [
-      {
-        "name": "MinGW",
-        "includePath": [
-          "${workspaceFolder}/**",
-          "${workspaceFolder}/src/include",  // MinGW headers (if needed)
-          "src/Include"  // Path to your SDL2 headers (as in your Makefile)
-        ],
-        "compilerPath": "C:/MinGW/bin/gcc.exe",
-        "cStandard": "c17",
-        "cppStandard": "c++17",
-        "intelliSenseMode": "windows-gcc-x86",
-        "windowsSdkVersion": "10.0.22000.0"
-      }
-    ],
-    "version": 4
-  }
+  "configurations": [
+    {
+      "name": "MinGW",
+      "includePath": [
+        "${workspaceFolder}/**",               // Includes everything in the workspace
+        "${workspaceFolder}/src/Include",      // Main include folder for headers
+        "${workspaceFolder}/src/Include/SDL2", // SDL2 headers directory (if any)
+        "${workspaceFolder}/src"               // Include path for source files (optional, for IntelliSense)
+      ],
+      "compilerPath": "C:/MinGW/bin/gcc.exe",  // Make sure this points to your MinGW compiler
+      "cStandard": "c17",                      // Standard you want to use
+      "cppStandard": "c++17",                  // C++ standard (if applicable)
+      "intelliSenseMode": "windows-gcc-x86",   // IntelliSense for MinGW on Windows
+      "windowsSdkVersion": "10.0.22000.0"      // The Windows SDK version (make sure it's up to date)
+    }
+  ],
+  "version": 4
+}
