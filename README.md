@@ -20,7 +20,7 @@ You can enter/quit a delete mode by pressing the backspace key, allowing to dele
 
 ## Compilation
 
-Open the folder with VS Code, run 'make' on the console then './main', or run the generated `main.exe` in the same folder. Just make sure you have gcc installed and the path in `c_cpp_properties.json` uses your gcc path.
+Open the folder with [VS Code](https://code.visualstudio.com/Download), run 'make' on the console then './main', or run the generated `main.exe` in the same folder. Just make sure you have gcc installed and the path in `c_cpp_properties.json` uses your gcc path.
 
 ## Comments
 
